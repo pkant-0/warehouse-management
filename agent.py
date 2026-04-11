@@ -1,8 +1,11 @@
 import os
 import logging
+import google.cloud.logging
 from dotenv import load_dotenv
 
-import google.cloud.logging
+# Load environment variables before importing tools to ensure they use correct config
+load_dotenv()
+
 from google.adk import Agent
 from google.adk.agents import SequentialAgent
 
@@ -17,7 +20,6 @@ except Exception as e:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     logging.warning(f"Google Cloud Logging setup failed, using standard logger: {e}")
 
-load_dotenv()
 model_name = os.getenv("MODEL", "gemini-1.5-pro")
 
 # --- Agent Configuration ---
@@ -49,6 +51,6 @@ coordinator_agent = Agent(
     name="coordinator",
     model=model_name,
     description="Primary routing agent that manages warehouse operations.",
-    instruction="Acknowledge the user's request, save it using 'add_prompt_to_state', and then call the 'warehouse_workflow' tool to begin the audit process.",
+    instruction="Acknowledge the user's request, save it using 'add_prompt_to_state', and then call the 'warehouse_workflow' tool to begin the audit process. Once the workflow is complete, provide a detailed summary of the findings and any actions taken to the user. If any tool returns an error, explain it clearly.",
     tools=[add_prompt_to_state, warehouse_workflow]
 )

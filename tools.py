@@ -1,11 +1,17 @@
 import os
-import sqlite3
-import csv
 import logging
+from google.cloud import bigquery
 from google.adk.tools.tool_context import ToolContext
 
 logger = logging.getLogger(__name__)
-DB_PATH = os.getenv("DATABASE_URL", "warehouse_inventory.db")
+
+def get_bq_config():
+    """Helper to get current BigQuery configuration from environment."""
+    return {
+        "PROJECT_ID": os.getenv("GOOGLE_CLOUD_PROJECT", "analytical-park-492702-a0"),
+        "DATASET_ID": os.getenv("BQ_DATASET", "warehouse_data"),
+        "TABLE_ID": os.getenv("BQ_TABLE", "expected_inventory")
+    }
 
 def add_prompt_to_state(tool_context: ToolContext, prompt: str) -> dict[str, str]:
     """Saves the user's initial prompt to the state."""
@@ -14,33 +20,20 @@ def add_prompt_to_state(tool_context: ToolContext, prompt: str) -> dict[str, str
     return {"status": "success"}
 
 def ingest_inventory_csv(tool_context: ToolContext, csv_path: str = "inventory.csv") -> dict[str, str]:
-    """Reads expected inventory from a CSV and stores it in an SQLite database."""
+    """Verifies BigQuery connectivity and ensures the dataset is ready."""
     try:
-        with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS expected_inventory (
-                    item_id TEXT PRIMARY KEY,
-                    description TEXT,
-                    expected_count INTEGER,
-                    location_tag TEXT
-                )
-            ''')
+        cfg = get_bq_config()
+        client = bigquery.Client(project=cfg["PROJECT_ID"])
+        table_ref = f"{cfg['PROJECT_ID']}.{cfg['DATASET_ID']}.{cfg['TABLE_ID']}"
+        table = client.get_table(table_ref)
 
-            if os.path.exists(csv_path):
-                with open(csv_path, mode='r') as f:
-                    reader = csv.DictReader(f)
-                    for row in reader:
-                        cursor.execute(
-                            "INSERT OR REPLACE INTO expected_inventory VALUES (?, ?, ?, ?)",
-                            (row['item_id'], row['description'], int(row['expected_count']), row['location_tag'])
-                        )
-                msg = f"Successfully ingested {csv_path} into inventory database."
-            else:
-                msg = f"CSV {csv_path} not found. Ensure the file exists for production use."
-                logger.warning(msg)
+        if table.num_rows == 0:
+            return {"status": "warning", "message": f"Table {table_ref} is empty. Ensure setup_env.sh was run correctly."}
 
-        return {"status": "success", "message": msg}
+        return {
+            "status": "success",
+            "message": f"Connected to BigQuery table {table_ref}. Ready for audit with {table.num_rows} records."
+        }
     except Exception as e:
         logger.error(f"Ingestion error: {e}")
         return {"status": "error", "message": str(e)}
@@ -48,21 +41,25 @@ def ingest_inventory_csv(tool_context: ToolContext, csv_path: str = "inventory.c
 def audit_drone_data(tool_context: ToolContext, query_location: str) -> dict[str, str]:
     """Compares real-time drone image metadata against the expected database records."""
     try:
-        with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='expected_inventory'")
-            if not cursor.fetchone():
-                return {"status": "error", "message": "Inventory database not initialized."}
+        cfg = get_bq_config()
+        client = bigquery.Client(project=cfg["PROJECT_ID"])
+        query = f"""
+            SELECT expected_count, description
+            FROM `{cfg['PROJECT_ID']}.{cfg['DATASET_ID']}.{cfg['TABLE_ID']}`
+            WHERE location_tag = @location
+        """
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[bigquery.ScalarQueryParameter("location", "STRING", query_location)]
+        )
+        query_job = client.query(query, job_config=job_config)
+        results = list(query_job.result())
 
-            cursor.execute('SELECT expected_count, description FROM expected_inventory WHERE location_tag=?', (query_location,))
-            row = cursor.fetchone()
-
-        if row:
-            expected_count = row[0]
+        if results:
+            expected_count, description = results[0]
             detected_count = int(expected_count * 0.86)
             return {
                 "status": "success",
-                "data": f"Audit complete for {query_location}: Discrepancy identified in '{row[1]}'. Expected {expected_count}, Drone detected {detected_count}."
+                "data": f"Audit complete for {query_location}: Discrepancy identified in '{description}'. Expected {expected_count}, Drone detected {detected_count}."
             }
         else:
             return {"status": "success", "data": f"No records for {query_location}."}

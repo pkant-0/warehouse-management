@@ -24,7 +24,7 @@ The system consists of three primary agents:
 
 -   Python 3.10+
 -   Google Cloud Project with Vertex AI API enabled.
--   Authenticated environment (e.g., `gcloud auth application-default login`).
+-   BigQuery API enabled in project `analytical-park-492702-a0`.
 
 ### Installation
 
@@ -36,12 +36,13 @@ The system consists of three primary agents:
 
 2.  Install dependencies:
     ```bash
-    pip install fastapi uvicorn google-adk python-dotenv google-cloud-logging
+    pip install fastapi uvicorn google-adk python-dotenv google-cloud-logging google-cloud-bigquery
     ```
 
-3.  Set up environment variables in a `.env` file:
-    ```env
-    MODEL=gemini-1.5-pro
+3.  **Run Setup Script**:
+    ```bash
+    chmod +x setup/setup_env.sh
+    ./setup/setup_env.sh
     ```
 
 ## Usage

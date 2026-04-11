@@ -1,13 +1,17 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from pydantic import BaseModel
 import time
+import logging
 
 from agent import coordinator_agent
 
 app = FastAPI(
     title="Logistic Warehouse Management API",
     version="1.0.0",
-    o
-AuditRequest(BaseModel):
+    description="Production-ready API for warehouse multi-agent workflows."
+)
+
+class AuditRequest(BaseModel):
     prompt: str
     location: str = "Zone-A"
 
@@ -31,5 +35,15 @@ async def run_warehouse_audit(request: AuditRequest):
     """
     try:
         agent_input = f"Audit inventory for {request.location}. {request.prompt}"
+        result = coordinator_agent.run(agent_input)
+
+        # Extract the text content from the agent response object
+        output_text = getattr(result, 'text', str(result))
+
+        return {
+            "status": "completed",
+            "output": output_text
+        }
 
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

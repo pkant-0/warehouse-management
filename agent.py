@@ -27,7 +27,7 @@ inventory_auditor = Agent(
     name="inventory_auditor",
     model=model_name,
     description="Ingests CSV data and parses drone metadata to identify inventory discrepancies.",
-    instruction="Use 'ingest_inventory_csv' to initialize the database from the expected inventory CSV. Use 'audit_drone_data' to cross-reference drone scans with expected records. Document all found discrepancies and output them clearly. PROMPT: { PROMPT }",
+    instruction="1. Call 'ingest_inventory_csv' to ensure the database is ready. 2. Use 'audit_drone_data' to compare drone scan results against the records. 3. Identify any missing items or count mismatches. 4. Pass the summary of discrepancies to the next agent.",
     tools=[ingest_inventory_csv, audit_drone_data],
     output_key="audit_findings"
 )
@@ -35,8 +35,8 @@ inventory_auditor = Agent(
 forecasting_agent = Agent(
     name="forecasting_agent",
     model=model_name,
-    description="Analyzes stock depletion and triggers proactive external actions.",
-    instruction="Review the AUDIT_FINDINGS. If items are depleting faster than expected or running low, use 'trigger_mcp_action' to proactively alert suppliers via email or assign a restock task. AUDIT_FINDINGS: { audit_findings }",
+    description="Analyzes audit findings to perform scheduling and task management.",
+    instruction="Review the data in {audit_findings}. If discrepancies exist, use 'trigger_mcp_action' to create a 'RESTOCK_TASK' or 'SUPPLIER_ALERT'. Detail exactly what needs attention in the payload.",
     tools=[trigger_mcp_action],
     output_key="forecast_actions"
 )

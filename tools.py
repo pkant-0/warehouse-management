@@ -8,9 +8,9 @@ logger = logging.getLogger(__name__)
 def get_bq_config():
     """Helper to get current BigQuery configuration from environment."""
     return {
-        "PROJECT_ID": os.getenv("GOOGLE_CLOUD_PROJECT", "analytical-park-492702-a0"),
-        "DATASET_ID": os.getenv("BQ_DATASET", "warehouse_data"),
-        "TABLE_ID": os.getenv("BQ_TABLE", "expected_inventory")
+        "PROJECT_ID": os.getenv("GOOGLE_CLOUD_PROJECT"),
+        "DATASET_ID": os.getenv("BQ_DATASET"),
+        "TABLE_ID": os.getenv("BQ_TABLE")
     }
 
 def add_prompt_to_state(tool_context: ToolContext, prompt: str) -> dict[str, str]:
@@ -68,6 +68,16 @@ def audit_drone_data(tool_context: ToolContext, query_location: str) -> dict[str
         return {"status": "error", "message": str(e)}
 
 def trigger_mcp_action(tool_context: ToolContext, action_type: str, payload: str) -> dict[str, str]:
-    """Integrates with external tools via Model Context Protocol."""
-    logger.info(f"[MCP Execution] Action: {action_type} | Payload: {payload}")
-    return {"status": "success", "message": f"MCP action executed: {action_type}"}
+    """
+    Integrates with external tools via Model Context Protocol (MCP).
+    Use this for scheduling, notifications, or task creation in external systems.
+    """
+    # In a real scenario, this would call an MCP server endpoint.
+    # Here we simulate the successful scheduling of a logistics task.
+    execution_details = {
+        "action": action_type,
+        "timestamp": "2023-10-27T10:00:00Z",
+        "payload_received": payload
+    }
+    logger.info(f"[MCP Execution] {execution_details}")
+    return {"status": "success", "message": f"Successfully triggered {action_type} via MCP."}

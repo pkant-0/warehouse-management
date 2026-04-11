@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configuration
-export PROJECT_ID="analytical-park-492702-a0"
+export PROJECT_ID="${GOOGLE_CLOUD_PROJECT:-your-project-id-here}"
 export DATASET_ID="warehouse_data"
 export TABLE_ID="expected_inventory"
 export REGION="US"
@@ -28,5 +28,6 @@ echo "MODEL=gemini-1.5-pro" > .env
 echo "GOOGLE_CLOUD_PROJECT=$PROJECT_ID" >> .env
 echo "BQ_DATASET=$DATASET_ID" >> .env
 echo "BQ_TABLE=$TABLE_ID" >> .env
+echo "API_ACCESS_TOKEN=super-secret-key" >> .env
 
 echo "Setup complete. You can now run the API."

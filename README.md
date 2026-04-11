@@ -24,7 +24,7 @@ The system consists of three primary agents:
 
 -   Python 3.10+
 -   Google Cloud Project with Vertex AI API enabled.
--   BigQuery API enabled in project `analytical-park-492702-a0`.
+-   BigQuery API enabled in your Google Cloud Project.
 
 ### Installation
 
@@ -41,8 +41,8 @@ The system consists of three primary agents:
 
 3.  **Run Setup Script**:
     ```bash
-    chmod +x setup/setup_env.sh
-    ./setup/setup_env.sh
+    chmod +x setup_env.sh
+    ./setup_env.sh
     ```
 
 ## Usage

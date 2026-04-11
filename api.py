@@ -1,8 +1,9 @@
-from fastapi import FastAPI, HTTPException, Request
+import os
+from fastapi import FastAPI, HTTPException, Request, Depends, Security
+from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
 import time
 import logging
-
 from agent import coordinator_agent
 
 app = FastAPI(
@@ -10,6 +11,14 @@ app = FastAPI(
     version="1.0.0",
     description="Production-ready API for warehouse multi-agent workflows."
 )
+
+API_KEY = os.getenv("API_ACCESS_TOKEN", "super-secret-key")
+api_key_header = APIKeyHeader(name="X-API-KEY", auto_error=False)
+
+async def get_api_key(api_key_header: str = Security(api_key_header)):
+    if api_key_header == API_KEY:
+        return api_key_header
+    raise HTTPException(status_code=403, detail="Could not validate credentials")
 
 class AuditRequest(BaseModel):
     prompt: str
@@ -29,7 +38,7 @@ async def health_check():
     return {"status": "healthy", "timestamp": time.time()}
 
 @app.post("/api/v1/warehouse/audit")
-async def run_warehouse_audit(request: AuditRequest):
+async def run_warehouse_audit(request: AuditRequest, api_key: str = Depends(get_api_key)):
     """
     Triggers the multi-agent warehouse auditing workflow.
     """
@@ -46,4 +55,9 @@ async def run_warehouse_audit(request: AuditRequest):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error during audit workflow: {str(e)}")
+        return {
+            "status": "failed",
+            "error": "Internal Server Error",
+            "message": "The multi-agent workflow encountered an unexpected issue."
+        }

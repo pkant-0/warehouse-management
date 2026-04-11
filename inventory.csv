@@ -1,3 +1,4 @@
-item_id,description,expected_count,location_tag
-SKU-100,Pallets of Electronics,500,Zone-A
-SKU-101,Pallets of Clothing,200,Zone-B
+sku,description,location_tag,expected_count
+SKU-001,High-density Lithium Batteries,Zone-A,150
+SKU-002,Solar Panel Mounting Brackets,Zone-B,45
+SKU-003,Industrial Power Inverters,Zone-A,22

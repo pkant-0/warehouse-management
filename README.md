@@ -50,3 +50,9 @@ The system consists of three primary agents:
     ```bash
     uvicorn api:app --reload
     ```
+
+2.  **Using Docker**:
+    ```bash
+    docker build -t warehouse-agent .
+    docker run -p 8000:8000 --env-file .env warehouse-agent
+    ```

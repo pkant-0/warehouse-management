@@ -1,16 +1,10 @@
-# Environments
-.env
-.venv
-venv/
-
-# Python
 __pycache__/
 *.py[cod]
-
-# Database
-*.db
-*.sqlite3
+*$py.class
 .env
-.venv/
-warehouse_inventory.db
+.venv
+env/
+venv/
+ENV/
+*.db
 .vscode/

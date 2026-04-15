@@ -30,13 +30,13 @@ The system consists of three primary agents:
 
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/pkant-0/warehouse-management.git
-    cd warehouse-management
+    git clone https://github.com/pkant-0/warehouse-management.git logistic_management
+    cd logistic_management
     ```
 
 2.  Install dependencies:
     ```bash
-    pip install fastapi uvicorn google-adk python-dotenv google-cloud-logging google-cloud-bigquery
+    pip install fastapi uvicorn "google-adk>=0.1.0" python-dotenv google-cloud-logging google-cloud-bigquery
     ```
 
 3.  **Run Setup Script**:
@@ -49,11 +49,27 @@ The system consists of three primary agents:
 
 1.  **Run the API server**:
     ```bash
-    uvicorn api:app --reload
+    # Locally
+    uvicorn api:app --reload --port 8000
+
+    # In Cloud Shell (for Web Preview)
+    uvicorn api:app --reload --port 8080
     ```
 
-2.  **Using Docker**:
+## Deployment to Google Cloud Run
+
+1.  **Enable Services**:
     ```bash
-    docker build -t warehouse-agent .
-    docker run -p 8000:8000 --env-file .env warehouse-agent
+    gcloud services enable artifactregistry.googleapis.com run.googleapis.com
+    ```
+
+2.  **Build and Deploy**:
+    Replace `PROJECT_ID` with `analytical-park-492702-a0`.
+    ```bash
+    gcloud run deploy warehouse_management \
+      --source . \
+      --region us-central1 \
+      --project analytical-park-492702-a0 \
+      --set-env-vars="GOOGLE_CLOUD_PROJECT=analytical-park-492702-a0,BQ_DATASET=warehouse_data,BQ_TABLE=expected_inventory,API_ACCESS_TOKEN=super-secret-key" \
+      --allow-unauthenticated
     ```

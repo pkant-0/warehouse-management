@@ -2,3 +2,9 @@ sku,description,location_tag,expected_count
 SKU-001,High-density Lithium Batteries,Zone-A,150
 SKU-002,Solar Panel Mounting Brackets,Zone-B,45
 SKU-003,Industrial Power Inverters,Zone-A,22
+SKU-004,Thermal Temperature Sensors,Zone-C,500
+SKU-005,Automated Sorting Arms,Zone-B,12
+SKU-006,Wireless Network Gateways,Zone-A,88
+SKU-007,Heavy-duty Pallet Jacks,Zone-C,15
+SKU-008,Emergency Backup Generators,Zone-B,5
+SKU-009,Safety Helmets (Box of 20),Zone-A,200

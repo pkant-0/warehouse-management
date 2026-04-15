@@ -1,5 +1,6 @@
 import os
 import logging
+import random
 from google.cloud import bigquery
 from google.adk.tools.tool_context import ToolContext
 
@@ -26,6 +27,10 @@ def ingest_inventory_csv(tool_context: ToolContext, csv_path: str = "inventory.c
         client = bigquery.Client(project=cfg["PROJECT_ID"])
         table_ref = f"{cfg['PROJECT_ID']}.{cfg['DATASET_ID']}.{cfg['TABLE_ID']}"
         table = client.get_table(table_ref)
+
+        # Log connectivity for debugging
+        logger.info(f"Connected to BigQuery: {table_ref}")
+        print(f"DEBUG: Connected to BigQuery: {table_ref}")
 
         if table.num_rows == 0:
             return {"status": "warning", "message": f"Table {table_ref} is empty. Ensure setup_env.sh was run correctly."}
@@ -56,7 +61,8 @@ def audit_drone_data(tool_context: ToolContext, query_location: str) -> dict[str
 
         if results:
             expected_count, description = results[0]
-            detected_count = int(expected_count * 0.86)
+            # Simulate realistic variance (85% to 100% detection)
+            detected_count = int(expected_count * random.uniform(0.85, 1.0))
             return {
                 "status": "success",
                 "data": f"Audit complete for {query_location}: Discrepancy identified in '{description}'. Expected {expected_count}, Drone detected {detected_count}."

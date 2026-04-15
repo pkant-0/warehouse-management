@@ -8,6 +8,7 @@ load_dotenv()
 
 from google.adk import Agent
 from google.adk.agents import SequentialAgent
+from google.adk.tools.tool_context import ToolContext
 
 # Import tools from the decoupled logic module
 from tools import add_prompt_to_state, ingest_inventory_csv, audit_drone_data, trigger_mcp_action
@@ -47,10 +48,18 @@ warehouse_workflow = SequentialAgent(
     sub_agents=[inventory_auditor, forecasting_agent]
 )
 
+def run_warehouse_workflow(tool_context: ToolContext) -> str:
+    """
+    Executes the multi-agent warehouse workflow for auditing and forecasting.
+    """
+    prompt = tool_context.state.get("PROMPT", "Perform inventory audit")
+    result = warehouse_workflow.run(prompt)
+    return result.text if hasattr(result, 'text') else str(result)
+
 coordinator_agent = Agent(
-    name="coordinator",
+    name="warehouse_coordinator",
     model=model_name,
     description="Primary routing agent that manages warehouse operations.",
-    instruction="Acknowledge the user's request, save it using 'add_prompt_to_state', and then call the 'warehouse_workflow' tool to begin the audit process. Once the workflow is complete, provide a detailed summary of the findings and any actions taken to the user. If any tool returns an error, explain it clearly.",
-    tools=[add_prompt_to_state, warehouse_workflow]
+    instruction="Acknowledge the user's request, save it using 'add_prompt_to_state', and then call the 'run_warehouse_workflow' tool to begin the audit process. Once the workflow is complete, provide a detailed summary of the findings and any actions taken to the user. If any tool returns an error, explain it clearly.",
+    tools=[add_prompt_to_state, run_warehouse_workflow]
 )

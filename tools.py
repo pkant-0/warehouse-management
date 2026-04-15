@@ -2,6 +2,7 @@ import os
 import logging
 import random
 from google.cloud import bigquery
+from google.api_core.exceptions import NotFound
 from google.adk.tools.tool_context import ToolContext
 
 logger = logging.getLogger(__name__)
@@ -20,36 +21,83 @@ def add_prompt_to_state(tool_context: ToolContext, prompt: str) -> dict[str, str
     logger.info(f"[State updated] Added to PROMPT: {prompt}")
     return {"status": "success"}
 
-def ingest_inventory_csv(tool_context: ToolContext, csv_path: str = "inventory.csv") -> dict[str, str]:
-    """Verifies BigQuery connectivity and ensures the dataset is ready."""
+def ingest_inventory_csv(tool_context: ToolContext, csv_path: str = "/home/piyush_knt/logistic_management/inventory.csv") -> dict[str, str]:
+    """Initializes BigQuery by loading the local inventory CSV data."""
     try:
         cfg = get_bq_config()
         client = bigquery.Client(project=cfg["PROJECT_ID"])
+        
+        # Ensure the dataset exists before attempting to load data
+        dataset_ref = client.dataset(cfg["DATASET_ID"])
+        try:
+            client.get_dataset(dataset_ref)
+        except NotFound:
+            logger.info(f"Dataset {cfg['DATASET_ID']} not found. Creating it...")
+            client.create_dataset(bigquery.Dataset(dataset_ref))
+
         table_ref = f"{cfg['PROJECT_ID']}.{cfg['DATASET_ID']}.{cfg['TABLE_ID']}"
+
+        job_config = bigquery.LoadJobConfig(
+            source_format=bigquery.SourceFormat.CSV,
+            skip_leading_rows=1,
+            autodetect=True,
+            write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
+        )
+
+        if not os.path.exists(csv_path):
+            return {"status": "error", "message": f"CSV file not found at {csv_path}"}
+
+        with open(csv_path, "rb") as source_file:
+            load_job = client.load_table_from_file(source_file, table_ref, job_config=job_config)
+            load_job.result()  # Wait for completion
+
         table = client.get_table(table_ref)
-
-        # Log connectivity for debugging
-        logger.info(f"Connected to BigQuery: {table_ref}")
-        print(f"DEBUG: Connected to BigQuery: {table_ref}")
-
-        if table.num_rows == 0:
-            return {"status": "warning", "message": f"Table {table_ref} is empty. Ensure setup_env.sh was run correctly."}
-
         return {
             "status": "success",
-            "message": f"Connected to BigQuery table {table_ref}. Ready for audit with {table.num_rows} records."
+            "message": f"Initialized {table_ref} with {table.num_rows} records from CSV."
         }
     except Exception as e:
         logger.error(f"Ingestion error: {e}")
         return {"status": "error", "message": str(e)}
 
-def audit_drone_data(tool_context: ToolContext, query_location: str) -> dict[str, str]:
-    """Compares real-time drone image metadata against the expected database records."""
+def update_inventory_data(tool_context: ToolContext, items: list[dict]) -> dict[str, str]:
+    """Streams new inventory records into BigQuery for scaling everyday inputs."""
+    try:
+        cfg = get_bq_config()
+        client = bigquery.Client(project=cfg["PROJECT_ID"])
+        table_id = f"{cfg['PROJECT_ID']}.{cfg['DATASET_ID']}.{cfg['TABLE_ID']}"
+
+        errors = client.insert_rows_json(table_id, items)
+        if not errors:
+            return {"status": "success", "message": f"Ingested {len(items)} new records."}
+        return {"status": "error", "message": f"Encountered errors: {errors}"}
+    except Exception as e:
+        logger.error(f"Update error: {e}")
+        return {"status": "error", "message": str(e)}
+
+def analyze_drone_media(tool_context: ToolContext, media_uri: str) -> dict[str, str]:
+    """
+    Analyzes drone media (images/videos) stored in GCS using multimodal AI.
+    Returns a description of detected items and their estimated counts.
+    """
+    # In production, this would call vertexai.generative_models.GenerativeModel
+    # to process the image/video Part.
+    logger.info(f"Analyzing multimodal data from: {media_uri}")
+    
+    # Simulated AI response extracting data from a video/image
+    return {
+        "status": "success",
+        "analysis": "Visual scan identifies SKU-001. Estimated count: 142 units. Condition: Normal.",
+        "detected_sku": "SKU-001"
+    }
+
+def audit_drone_data(tool_context: ToolContext, query_location: str, visual_observation: str = None) -> dict[str, str]:
+    """Compares drone observations (visual or metadata) against the expected database records."""
     try:
         cfg = get_bq_config()
         client = bigquery.Client(project=cfg["PROJECT_ID"])
         query = f"""
-            SELECT expected_count, description
+            SELECT expected_count, description, sku
             FROM `{cfg['PROJECT_ID']}.{cfg['DATASET_ID']}.{cfg['TABLE_ID']}`
             WHERE location_tag = @location
         """
@@ -60,12 +108,13 @@ def audit_drone_data(tool_context: ToolContext, query_location: str) -> dict[str
         results = list(query_job.result())
 
         if results:
-            expected_count, description = results[0]
-            # Simulate realistic variance (85% to 100% detection)
-            detected_count = int(expected_count * random.uniform(0.85, 1.0))
+            expected_count, description, sku = results[0]
+            # If visual_observation is provided by analyze_drone_media, the agent can use it to compare.
+            info_source = visual_observation if visual_observation else "simulated sensor data"
+            
             return {
                 "status": "success",
-                "data": f"Audit complete for {query_location}: Discrepancy identified in '{description}'. Expected {expected_count}, Drone detected {detected_count}."
+                "data": f"Audit for {query_location}: '{description}' ({sku}). Expected: {expected_count}. Drone observation: {info_source}."
             }
         else:
             return {"status": "success", "data": f"No records for {query_location}."}

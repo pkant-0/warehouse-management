@@ -11,7 +11,7 @@ from google.adk.agents import SequentialAgent
 from google.adk.tools.tool_context import ToolContext
 
 # Import tools from the decoupled logic module
-from tools import add_prompt_to_state, ingest_inventory_csv, audit_drone_data, trigger_mcp_action
+from tools import add_prompt_to_state, ingest_inventory_csv, audit_drone_data, trigger_mcp_action, update_inventory_data, analyze_drone_media
 
 # --- Setup Logging and Environment ---
 try:
@@ -27,9 +27,15 @@ model_name = os.getenv("MODEL", "gemini-1.5-pro")
 inventory_auditor = Agent(
     name="inventory_auditor",
     model=model_name,
-    description="Ingests CSV data and parses drone metadata to identify inventory discrepancies.",
-    instruction="1. Call 'ingest_inventory_csv' to ensure the database is ready. 2. Use 'audit_drone_data' to compare drone scan results against the records. 3. Identify any missing items or count mismatches. 4. Pass the summary of discrepancies to the next agent.",
-    tools=[ingest_inventory_csv, audit_drone_data],
+    description="Analyzes drone media and database records to identify discrepancies.",
+    instruction="""
+    1. Call 'ingest_inventory_csv' to ensure the database is ready if needed.
+    2. If a media URI is provided, use 'analyze_drone_media' to extract visual counts.
+    3. Use 'audit_drone_data' to retrieve expected counts from the database for the given location.
+    4. Compare the visual findings against the database records.
+    5. Pass a summary of discrepancies (e.g., SKU, expected vs actual, visual condition) to the next agent.
+    """,
+    tools=[ingest_inventory_csv, audit_drone_data, analyze_drone_media],
     output_key="audit_findings"
 )
 
@@ -60,6 +66,6 @@ coordinator_agent = Agent(
     name="warehouse_coordinator",
     model=model_name,
     description="Primary routing agent that manages warehouse operations.",
-    instruction="Acknowledge the user's request, save it using 'add_prompt_to_state', and then call the 'run_warehouse_workflow' tool to begin the audit process. Once the workflow is complete, provide a detailed summary of the findings and any actions taken to the user. If any tool returns an error, explain it clearly.",
-    tools=[add_prompt_to_state, run_warehouse_workflow]
+    instruction="Acknowledge the user's request. If the request is to update inventory data, use 'update_inventory_data'. If the request is to perform an audit, save it using 'add_prompt_to_state' and call 'run_warehouse_workflow'. Once complete, provide a summary of actions taken.",
+    tools=[add_prompt_to_state, run_warehouse_workflow, update_inventory_data]
 )
